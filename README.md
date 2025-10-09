@@ -7,6 +7,7 @@ This project provides scripts and guidance to deploy IBM Maximo Manage locally w
 - IBM Maximo Manage images and entitlement.
 - Podman installed and operational on Windows or Linux.
 - PowerShell environment (Windows or via WSL/Terminal).
+- Local SQL Server image for the database (used in this installation).
 
 ## Quick Start Guide
 
@@ -26,14 +27,25 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 Allows running scripts for this session without permanent changes to security policy.
 
-### 3. Deploy Maximo Manage
+### 3. Deploy Maximo Manage Images and Start Containers
 
-Execute the provided deployment script:
+Execute the deployment script to pull and start Maximo Manage images:
 
 ```sh
 .\install_and_delpoy_start-manage_images.ps1
 ```
-This script pulls required images and starts Maximo Manage in Podman containers.
+
+This script pulls the Maximo Manage images and deploys the containers.
+
+### 4. Starting the Maximo Manage Instance
+
+Once deployed, start the Maximo Manage instance using:
+
+```sh
+.\start-manage-dev.ps1
+```
+
+This script starts the already deployed Maximo Manage instance container.
 
 ## Useful Podman Commands
 
@@ -61,4 +73,3 @@ This script pulls required images and starts Maximo Manage in Podman containers.
 
 - IBM Docs: Podman setup and troubleshooting
 - Example containerized Maximo environments
-
