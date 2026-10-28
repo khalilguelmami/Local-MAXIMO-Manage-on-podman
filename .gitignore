@@ -1,0 +1,4 @@
+# Local settings with credentials and crypto keys
+manage-dev.env
+*.env
+!manage-dev.env.example

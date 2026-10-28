@@ -1,75 +1,91 @@
-# Maximo Manage Deployment on Podman (No OpenShift)
+# Maximo Manage on Podman: a local developer sandbox
 
-This project provides scripts and guidance to deploy IBM Maximo Manage locally with Podman, using PowerShell—without needing OpenShift.
+Run IBM Maximo Manage in a single Podman container on your laptop (Windows or Linux), to write and debug customizations without waiting for OpenShift builds and rollouts.
+
+> **What this is:** a personal development sandbox for **Manage**, built from the Manage images that your MAS cluster already produced.
+>
+> **What this is not:** a way to run MAS without OpenShift. You still need a MAS environment (and a valid entitlement) to get the images. Other MAS applications (Monitor, Health, Predict…) are deployed by operators on MAS core and are not covered. Not a supported deployment model, not for production.
+
+## How it works
+
+1. **Pull** the Manage `-admin` and `-all` images from the OpenShift internal registry of your MAS cluster.
+2. **Rebuild** the Maximo EAR from the `-admin` image with the development deployment descriptors (`web-dev.xml`), so Manage uses its own native login instead of OIDC through MAS core.
+3. **Build** a runtime image from the `-all` server bundle: expanded EAR (classes and JSPs can be replaced in place), development `server.xml`, `MXE_MASDEPLOYED=0`, Liberty started in **debug mode**.
+4. **Run** it against a SQL Server database reachable from the Podman VM.
 
 ## Prerequisites
 
-- IBM Maximo Manage images and entitlement.
-- Podman installed and operational on Windows or Linux.
-- PowerShell environment (Windows or via WSL/Terminal).
-- Local SQL Server image for the database (used in this installation).
+- Access to a MAS cluster with Manage deployed, and `oc` logged in to it
+- Podman installed and running (on Windows: `podman machine start`)
+- PowerShell
+- A SQL Server database restored from a backup of your development environment, **from the same Manage version as the images**
+- The Maximo crypto keys of the environment the database comes from
 
-## Quick Start Guide
+Give the Podman machine enough memory for Manage (for example `podman machine set --memory 12288`). The first start takes several minutes.
 
-### 1. Environment Setup
+## Quick start
 
-```sh
+```powershell
 podman machine start
-```
-Starts the Podman virtual machine environment for running Linux containers on non-Linux systems.
-
-### 2. PowerShell Initialization
-
-Open PowerShell in your project directory then run:
-
-```sh
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-Allows running scripts for this session without permanent changes to security policy.
 
-### 3. Deploy Maximo Manage Images and Start Containers
+# 1. Local settings: database credentials and crypto keys
+Copy-Item manage-dev.env.example manage-dev.env
+notepad manage-dev.env
 
-Execute the deployment script to pull and start Maximo Manage images:
+# 2. Pull the images, build the local image and start it (first time)
+.\install-and-deploy-manage.ps1 `
+  -RegistryRoute default-route-openshift-image-registry.apps.<cluster-domain> `
+  -MasInstance <mas-instance-id> `
+  -Workspace <manage-workspace-id>
 
-```sh
-.\install_and_delpoy_start-manage_images.ps1
-```
-
-This script pulls the Maximo Manage images and deploys the containers.
-
-### 4. Starting the Maximo Manage Instance
-
-Once deployed, start the Maximo Manage instance using:
-
-```sh
+# 3. Next times: just restart the container
 .\start-manage-dev.ps1
 ```
 
-This script starts the already deployed Maximo Manage instance container.
+Then open **http://localhost:9080/maximo** and log in with a native Maximo user from your database.
 
-## Useful Podman Commands
+| Port | Use |
+|---|---|
+| 9080 | HTTP |
+| 9443 | HTTPS |
+| 7777 | Liberty remote debug (attach your IDE) |
 
-- **Start Podman machine:**  
-  `podman machine start`  
+## Configuration (`manage-dev.env`)
 
-- **List all containers (including stopped):**  
-  `podman ps -a`  
+| Variable | Description |
+|---|---|
+| `MXE_DB_NAME`, `MXE_DB_PORT` | SQL Server database name and port |
+| `MXE_DB_USER`, `MXE_DB_PASSWORD` | Database credentials |
+| `MXE_SECURITY_CRYPTO_KEY`, `MXE_SECURITY_CRYPTOX_KEY` (and `OLD_` variants) | Crypto keys of the source environment |
 
-- **Purge unused containers, images, and networks:**  
-  `podman system prune -a`  
+`manage-dev.env` is in `.gitignore`. **Never commit credentials or crypto keys.**
 
-- **View container logs (live):**  
-  `podman logs -f manage-dev-container`  
+The JDBC URL is built automatically with the host IPv4 address, because inside the Podman VM `localhost` is not your host.
+
+## Useful commands
+
+```powershell
+podman ps -a                          # container status
+podman logs -f manage-dev-container   # live logs
+podman exec -it manage-dev-container bash
+```
 
 ## Troubleshooting
 
-- Ensure Podman is running (`podman machine start`).
-- Check image availability before deploying.
-- Verify execution policy if script fails to start.
-- Use `podman ps -a` to confirm container status.
-- Stream container logs for error review (`podman logs -f <container-name>`).
+- **Encrypted values do not decrypt / login fails:** the crypto keys do not match the database.
+- **Database connection refused:** check the SQL Server port is reachable from the Podman VM (firewall, TCP enabled) and the IP shown by the script.
+- **Image or class errors after a MAS update:** rebuild the local image and refresh the database backup together, they must stay on the same Manage version.
+- **Pull fails with a certificate error:** the scripts use `--tls-verify=false` by default for lab clusters with a self-signed registry route. On a real cluster, trust the registry CA and use `-TlsVerify`.
 
-## References
+> ⚠️ `podman system prune -a` removes **all** unused images, including `manage-admin-dev` and `manage-all-dev`. You would have to pull them from the cluster again.
 
-- IBM Docs: Podman setup and troubleshooting
-- Example containerized Maximo environments
+## Tested with
+
+MAS 9.x Manage images on Windows 11 with Podman (Linux VM) and SQL Server.
+
+## More
+
+Background, design choices and the traps I hit: *Running Maximo Manage locally with Podman* on IBM TechXchange (link coming soon).
+
+Feedback and pull requests are welcome.
