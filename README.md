@@ -86,6 +86,6 @@ MAS 9.x Manage images on Windows 11 with Podman (Linux VM) and SQL Server.
 
 ## More
 
-Background, design choices and the traps I hit: *Running Maximo Manage locally with Podman* on IBM TechXchange (link coming soon).
+Background, design choices and the traps I hit: [Running Maximo Manage locally with Podman](https://community.ibm.com/community/user/discussion/running-maximo-manage-locally-with-podman-a-developer-sandbox-without-the-openshift-wait) on IBM TechXchange.
 
 Feedback and pull requests are welcome.
